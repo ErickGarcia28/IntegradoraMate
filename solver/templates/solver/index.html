@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transformada de Laplace — UTEZ</title>
+
+  <!-- KaTeX para renderizar LaTeX -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.body, {
+      delimiters: [
+        {left:'$$',right:'$$',display:true},
+        {left:'\\(',right:'\\)',display:false},
+        {left:'\\[',right:'\\]',display:true}
+      ],
+      throwOnError: false
+    })"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    /* ═══════════════════════════════════════════════════════════════
+       TOKENS — El vocabulario del "instrumento científico"
+    ═══════════════════════════════════════════════════════════════ */
+    :root {
+      --bg-base:       #090d16;
+      --bg-card:       #0f1623;
+      --bg-elevated:   #141d2e;
+      --bg-input:      #0b1120;
+      --bg-hover:      #192236;
+
+      --border:        rgba(255,255,255,0.055);
+      --border-med:    rgba(255,255,255,0.10);
+      --border-accent: rgba(245,158,11,0.35);
+
+      --text-primary:  #e2e8f0;
+      --text-secondary:#94a3b8;
+      --text-muted:    #475569;
+
+      --amber:         #f59e0b;
+      --amber-dim:     rgba(245,158,11,0.12);
+      --amber-glow:    rgba(245,158,11,0.06);
+
+      --green:         #10b981;
+      --green-dim:     rgba(16,185,129,0.12);
+
+      --indigo:        #818cf8;
+      --indigo-dim:    rgba(129,140,248,0.12);
+
+      --blue:          #38bdf8;
+      --blue-dim:      rgba(56,189,248,0.10);
+
+      --violet:        #c084fc;
+      --violet-dim:    rgba(192,132,252,0.10);
+
+      --red:           #f87171;
+      --red-dim:       rgba(248,113,113,0.12);
+
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 16px;
+
+      --font-ui:   'Inter', system-ui, sans-serif;
+      --font-head: 'Space Grotesk', system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+    }
+
+    /* ── Reset ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg-base);
+      color: var(--text-primary);
+      font-family: var(--font-ui);
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-base); }
+    ::-webkit-scrollbar-thumb { background: var(--border-med); border-radius: 3px; }
+
+    /* ═══════════════════════════════════════════════════════════════
+       HEADER NAV
+    ═══════════════════════════════════════════════════════════════ */
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 32px;
+      height: 58px;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: rgba(9,13,22,0.92);
+      backdrop-filter: blur(12px);
+      z-index: 100;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: var(--font-head);
+      font-weight: 700;
+      font-size: 16px;
+      letter-spacing: -0.3px;
+    }
+    .nav-logo {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--amber) 0%, #d97706 100%);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-family: var(--font-mono);
+      color: #0a0e17;
+      font-weight: 700;
+    }
+    .nav-badge {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      padding: 2px 8px;
+      border-radius: 20px;
+      letter-spacing: 0.5px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       PIPELINE VISUAL — "El puente de Laplace"
+    ═══════════════════════════════════════════════════════════════ */
+    .pipeline-section {
+      padding: 40px 32px 0;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .pipeline-track {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      overflow-x: auto;
+      padding: 6px 0 12px;
+    }
+    .pipe-node {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      min-width: 110px;
+    }
+    .pipe-node-circle {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 600;
+      border: 2px solid var(--border);
+      background: var(--bg-card);
+      transition: border-color 0.3s, background 0.3s, box-shadow 0.3s;
+    }
+    .pipe-node-label {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-align: center;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+    }
+    .pipe-node.active .pipe-node-circle {
+      border-color: var(--amber);
+      background: var(--amber-dim);
+      box-shadow: 0 0 18px rgba(245,158,11,0.25);
+      color: var(--amber);
+    }
+    .pipe-node.active .pipe-node-label { color: var(--amber); }
+    .pipe-node.done .pipe-node-circle {
+      border-color: var(--green);
+      background: var(--green-dim);
+      color: var(--green);
+    }
+    .pipe-node.done .pipe-node-label { color: var(--green); }
+
+    .pipe-arrow {
+      flex: 1;
+      min-width: 48px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      position: relative;
+    }
+    .pipe-arrow-line {
+      width: 100%;
+      height: 2px;
+      background: var(--border);
+      position: relative;
+    }
+    .pipe-arrow-line::after {
+      content: '';
+      position: absolute;
+      right: -5px;
+      top: -4px;
+      border: 5px solid transparent;
+      border-left-color: var(--border-med);
+    }
+    .pipe-arrow-op {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      white-space: nowrap;
+    }
+    .pipe-arrow.done .pipe-arrow-line { background: var(--green-dim); }
+    .pipe-arrow.done .pipe-arrow-op   { color: var(--green); }
+
+    /* ═══════════════════════════════════════════════════════════════
+       MAIN LAYOUT
+    ═══════════════════════════════════════════════════════════════ */
+    .main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 32px 32px 80px;
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      gap: 28px;
+      align-items: start;
+    }
+    @media (max-width: 900px) {
+      .main { grid-template-columns: 1fr; }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       CARDS
+    ═══════════════════════════════════════════════════════════════ */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 18px 22px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .card-header-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+    .card-header-icon.amber { background: var(--amber-dim); }
+    .card-header-icon.green { background: var(--green-dim); }
+    .card-header-icon.indigo { background: var(--indigo-dim); }
+    .card-title {
+      font-family: var(--font-head);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .card-body { padding: 20px 22px; }
+
+    /* ═══════════════════════════════════════════════════════════════
+       FORM — Constructor de ecuaciones
+    ═══════════════════════════════════════════════════════════════ */
+    .order-tabs {
+      display: flex;
+      gap: 0;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 3px;
+      margin-bottom: 20px;
+    }
+    .order-tab {
+      flex: 1;
+      padding: 8px 12px;
+      border-radius: 5px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-family: var(--font-ui);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .order-tab.active {
+      background: var(--bg-elevated);
+      color: var(--amber);
+      border: 1px solid var(--border-accent);
+    }
+
+    .eq-builder {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px 18px;
+      margin-bottom: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 14px;
+    }
+    .eq-op {
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .eq-var {
+      color: var(--amber);
+      font-weight: 600;
+    }
+    .eq-coeff-input {
+      width: 56px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      padding: 5px 8px;
+      text-align: center;
+      transition: border-color 0.15s;
+    }
+    .eq-coeff-input:focus {
+      outline: none;
+      border-color: var(--amber);
+      background: var(--bg-card);
+    }
+    .eq-equals { color: var(--text-secondary); font-weight: 600; }
+
+    .rhs-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .form-select, .form-input {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-family: var(--font-ui);
+      font-size: 13px;
+      padding: 8px 12px;
+      width: 100%;
+      transition: border-color 0.15s;
+    }
+    .form-select:focus, .form-input:focus {
+      outline: none;
+      border-color: var(--amber);
+    }
+    .form-select option { background: var(--bg-elevated); }
+
+    .ic-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .ic-field { display: flex; flex-direction: column; gap: 6px; }
+    .ic-label {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .form-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 18px 0;
+    }
+
+    /* ── Botón principal ── */
+    .btn-solve {
+      width: 100%;
+      padding: 12px;
+      background: var(--amber);
+      color: #0a0e17;
+      border: none;
+      border-radius: var(--radius-md);
+      font-family: var(--font-head);
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: 0.3px;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn-solve:hover { opacity: 0.9; }
+    .btn-solve:active { transform: scale(0.99); }
+
+    /* ── Ejemplos ── */
+    .examples-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 10px;
+    }
+    .examples-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .btn-example {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 0.15s, background 0.15s;
+      width: 100%;
+    }
+    .btn-example:hover {
+      border-color: var(--border-accent);
+      background: var(--amber-glow);
+    }
+    .example-num {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--amber);
+      background: var(--amber-dim);
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .example-label {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-primary);
+      line-height: 1.5;
+    }
+    .example-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       TOOLTIPS
+    ═══════════════════════════════════════════════════════════════ */
+    .tip {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      cursor: help;
+    }
+    .tip-icon {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--indigo-dim);
+      border: 1px solid rgba(129,140,248,0.3);
+      color: var(--indigo);
+      font-size: 9px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: 6px;
+      flex-shrink: 0;
+      font-family: var(--font-head);
+    }
+    .tip-bubble {
+      position: absolute;
+      bottom: calc(100% + 10px);
+      left: 50%;
+      transform: translateX(-50%);
+      width: 280px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-med);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      font-family: var(--font-ui);
+      font-size: 12px;
+      line-height: 1.55;
+      color: var(--text-secondary);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.18s;
+      z-index: 200;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    .tip-bubble::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: var(--border-med);
+    }
+    .tip:hover .tip-bubble,
+    .tip:focus-within .tip-bubble { opacity: 1; }
+
+    /* ═══════════════════════════════════════════════════════════════
+       RESULTADOS
+    ═══════════════════════════════════════════════════════════════ */
+    .results-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* ── Tarjeta de solución final ── */
+    .answer-card {
+      background: var(--bg-card);
+      border: 1px solid var(--green);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    .answer-header {
+      background: var(--green-dim);
+      padding: 14px 22px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid rgba(16,185,129,0.2);
+    }
+    .answer-header-label {
+      font-family: var(--font-head);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--green);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+    .answer-body {
+      padding: 24px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .answer-eq {
+      font-size: 17px;
+      text-align: center;
+      padding: 16px;
+      background: var(--bg-elevated);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+    }
+
+    /* ── Steps ── */
+    .step-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    .step-header {
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      user-select: none;
+      border-bottom: 1px solid transparent;
+      transition: background 0.15s;
+    }
+    .step-header:hover { background: var(--bg-elevated); }
+    .step-header.open { border-bottom-color: var(--border); }
+    .step-num {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .step-num.amber  { background: var(--amber-dim);  color: var(--amber);  border: 1px solid rgba(245,158,11,0.3); }
+    .step-num.indigo { background: var(--indigo-dim); color: var(--indigo); border: 1px solid rgba(129,140,248,0.3); }
+    .step-num.blue   { background: var(--blue-dim);   color: var(--blue);   border: 1px solid rgba(56,189,248,0.3); }
+    .step-num.violet { background: var(--violet-dim); color: var(--violet); border: 1px solid rgba(192,132,252,0.3); }
+    .step-num.green  { background: var(--green-dim);  color: var(--green);  border: 1px solid rgba(16,185,129,0.3); }
+
+    .step-title {
+      font-family: var(--font-head);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      flex: 1;
+    }
+    .step-chevron {
+      color: var(--text-muted);
+      font-size: 12px;
+      transition: transform 0.2s;
+    }
+    .step-header.open .step-chevron { transform: rotate(180deg); }
+
+    .step-body {
+      display: none;
+      padding: 18px 20px;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .step-body.open { display: flex; }
+
+    .step-math {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      font-size: 15px;
+      overflow-x: auto;
+      text-align: center;
+    }
+    .step-math.multiline {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: flex-start;
+      text-align: left;
+    }
+    .step-theory {
+      background: var(--indigo-dim);
+      border: 1px solid rgba(129,140,248,0.15);
+      border-left: 3px solid var(--indigo);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+    .step-theory strong { color: var(--indigo); }
+
+    /* ── Gráfica ── */
+    .plot-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    .plot-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .plot-body {
+      padding: 0;
+    }
+    .plot-body img {
+      width: 100%;
+      display: block;
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    }
+    .plot-caption {
+      padding: 10px 18px 14px;
+      font-size: 11px;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Error ── */
+    .error-card {
+      background: var(--red-dim);
+      border: 1px solid rgba(248,113,113,0.3);
+      border-radius: var(--radius-lg);
+      padding: 18px 20px;
+    }
+    .error-title {
+      font-family: var(--font-head);
+      font-weight: 700;
+      color: var(--red);
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+    .error-body {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    /* ── Placeholder (sin resultado) ── */
+    .placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 360px;
+      gap: 16px;
+      color: var(--text-muted);
+      text-align: center;
+      padding: 40px;
+    }
+    .placeholder-icon {
+      font-size: 48px;
+      opacity: 0.25;
+    }
+    .placeholder-title {
+      font-family: var(--font-head);
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+    .placeholder-sub {
+      font-size: 13px;
+      color: var(--text-muted);
+      max-width: 280px;
+      line-height: 1.5;
+    }
+
+    /* ── Resumen de ecuación ingresada ── */
+    .eq-summary {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-accent);
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
+      margin-bottom: 4px;
+    }
+    .eq-summary-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: var(--amber);
+    }
+    .eq-summary-math { font-size: 15px; }
+
+    /* ── Info lateral — tarjeta de teoría ── */
+    .theory-aside {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 18px 20px;
+      margin-bottom: 16px;
+    }
+    .theory-aside-title {
+      font-family: var(--font-head);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      margin-bottom: 12px;
+    }
+    .theory-formula {
+      font-size: 14px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+      margin-bottom: 6px;
+      overflow-x: auto;
+      text-align: center;
+    }
+    .theory-note {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-top: 4px;
+    }
+
+    /* ── Tag ── */
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 3px 8px;
+      border-radius: 20px;
+    }
+    .tag.amber  { background: var(--amber-dim);  color: var(--amber);  border: 1px solid rgba(245,158,11,0.2); }
+    .tag.green  { background: var(--green-dim);  color: var(--green);  border: 1px solid rgba(16,185,129,0.2); }
+    .tag.indigo { background: var(--indigo-dim); color: var(--indigo); border: 1px solid rgba(129,140,248,0.2); }
+  </style>
+</head>
+
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     NAVEGACIÓN
+═══════════════════════════════════════════════════════════════ -->
+<nav class="nav">
+  <div class="nav-brand">
+    <div class="nav-logo">ℒ</div>
+    <span>Transformada de Laplace</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <span class="nav-badge">EDOs 1° y 2° Orden</span>
+    <span class="nav-badge">UTEZ · 8vo Cuatrimestre</span>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     PIPELINE VISUAL
+═══════════════════════════════════════════════════════════════ -->
+<section class="pipeline-section">
+  <div style="margin-bottom:14px;display:flex;align-items:center;gap:12px">
+    <h1 style="font-family:var(--font-head);font-size:18px;font-weight:700;color:var(--text-primary)">
+      Solver de Ecuaciones Diferenciales
+    </h1>
+    <span class="tag amber">Método de Laplace</span>
+    <span class="tip">
+      <span class="tip-icon">?</span>
+      <span class="tip-bubble">
+        El método de Laplace transforma una EDO en una ecuación algebraica,
+        la resuelve en el dominio s, y aplica la transformada inversa para
+        obtener y(t). Las condiciones iniciales se incorporan automáticamente
+        durante la transformación.
+      </span>
+    </span>
+  </div>
+  <div class="pipeline-track" id="pipeline">
+    <div class="pipe-node {% if result %}done{% else %}active{% endif %}" id="pnode-0">
+      <div class="pipe-node-circle">y(t)</div>
+      <div class="pipe-node-label">EDO Original</div>
+    </div>
+    <div class="pipe-arrow {% if result %}done{% endif %}">
+      <div class="pipe-arrow-line"></div>
+      <div class="pipe-arrow-op">ℒ{·}</div>
+    </div>
+    <div class="pipe-node {% if result %}done{% endif %}" id="pnode-1">
+      <div class="pipe-node-circle">Y(s)</div>
+      <div class="pipe-node-label">Dominio s</div>
+    </div>
+    <div class="pipe-arrow {% if result %}done{% endif %}">
+      <div class="pipe-arrow-line"></div>
+      <div class="pipe-arrow-op">Álgebra</div>
+    </div>
+    <div class="pipe-node {% if result %}done{% endif %}" id="pnode-2">
+      <div class="pipe-node-circle">Y(s)=…</div>
+      <div class="pipe-node-label">Solución en s</div>
+    </div>
+    <div class="pipe-arrow {% if result %}done{% endif %}">
+      <div class="pipe-arrow-line"></div>
+      <div class="pipe-arrow-op">ℒ⁻¹{·}</div>
+    </div>
+    <div class="pipe-node {% if result %}done{% endif %}" id="pnode-3">
+      <div class="pipe-node-circle">y(t)</div>
+      <div class="pipe-node-label">Solución Final</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     MAIN LAYOUT
+═══════════════════════════════════════════════════════════════ -->
+<div class="main">
+
+  <!-- ── Columna izquierda: Formulario ── -->
+  <div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-header-icon amber">⚙</div>
+        <span class="card-title">Configurar Ecuación</span>
+        <span class="tip">
+          <span class="tip-icon">?</span>
+          <span class="tip-bubble">
+            Ingresa los coeficientes de la EDO en forma estándar:
+            a₂y'' + a₁y' + a₀y = f(t).
+            Luego especifica las condiciones iniciales y(0) y y'(0).
+          </span>
+        </span>
+      </div>
+      <div class="card-body">
+        <form method="POST" id="solver-form">
+          {% csrf_token %}
+
+          <!-- ── Orden ── -->
+          <div class="order-tabs">
+            <button type="button" class="order-tab {% if form.order != '1' %}active{% endif %}"
+                    onclick="setOrder(2)">Segundo Orden</button>
+            <button type="button" class="order-tab {% if form.order == '1' %}active{% endif %}"
+                    onclick="setOrder(1)">Primer Orden</button>
+          </div>
+          <input type="hidden" name="order" id="order-input"
+                 value="{{ form.order|default:'2' }}">
+
+          <!-- ── Constructor visual de ecuación ── -->
+          <div class="eq-builder">
+            <span id="a2-wrap" {% if form.order == '1' %}style="display:none"{% endif %}>
+              <input type="number" step="any" name="a2" class="eq-coeff-input"
+                     value="{{ form.a2|default:'1' }}" id="a2-field" placeholder="a₂">
+              <span class="eq-var">y''</span>
+              <span class="eq-op">+</span>
+            </span>
+            <input type="number" step="any" name="a1" class="eq-coeff-input"
+                   value="{{ form.a1|default:'1' }}" id="a1-field" placeholder="a₁">
+            <span class="eq-var">y'</span>
+            <span class="eq-op">+</span>
+            <input type="number" step="any" name="a0" class="eq-coeff-input"
+                   value="{{ form.a0|default:'0' }}" id="a0-field" placeholder="a₀">
+            <span class="eq-var">y</span>
+            <span class="eq-equals">=</span>
+            <span class="eq-var" style="color:var(--blue)">f(t)</span>
+          </div>
+
+          <!-- ── f(t) selector ── -->
+          <div style="margin-bottom:16px">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+              <label style="font-size:12px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px">
+                Función f(t)
+              </label>
+              <span class="tip">
+                <span class="tip-icon">?</span>
+                <span class="tip-bubble">
+                  El lado derecho f(t) convierte la EDO en no homogénea.
+                  Si f(t)=0, la ecuación es homogénea.
+                  El parámetro 'a' o 'b' corresponde al exponente en eᵃᵗ
+                  o la frecuencia en sin(bt)/cos(bt).
+                </span>
+              </span>
+            </div>
+            <div class="rhs-row">
+              <select name="rhs_type" id="rhs-type" class="form-select" style="flex:2"
+                      onchange="updateRhsParam()">
+                {% for key, label in rhs_labels.items %}
+                <option value="{{ key }}" {% if form.rhs_type == key %}selected{% endif %}>
+                  {{ label }}
+                </option>
+                {% endfor %}
+              </select>
+              <div id="rhs-param-wrap" style="flex:1">
+                <input type="number" step="any" name="rhs_param" id="rhs-param"
+                       class="form-input" value="{{ form.rhs_param|default:'1' }}"
+                       placeholder="param">
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Condiciones iniciales ── -->
+          <div style="margin-bottom:8px;display:flex;align-items:center;gap:6px">
+            <span style="font-size:12px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px">
+              Condiciones Iniciales
+            </span>
+            <span class="tip">
+              <span class="tip-icon">?</span>
+              <span class="tip-bubble">
+                Las condiciones iniciales y(0) y y'(0) son los valores de la
+                función y su derivada en t=0. Son esenciales: sin ellas,
+                la solución sería una familia de curvas, no una única solución.
+                El método de Laplace las incorpora automáticamente en la ecuación
+                algebraica (no se necesitan resolver constantes después).
+              </span>
+            </span>
+          </div>
+          <div class="ic-grid">
+            <div class="ic-field">
+              <label class="ic-label">y(0) =</label>
+              <input type="number" step="any" name="y0" class="form-input"
+                     value="{{ form.y0|default:'0' }}" placeholder="0">
+            </div>
+            <div class="ic-field" id="dy0-wrap"
+                 {% if form.order == '1' %}style="display:none"{% endif %}>
+              <label class="ic-label">y'(0) =</label>
+              <input type="number" step="any" name="dy0" class="form-input"
+                     value="{{ form.dy0|default:'0' }}" placeholder="0">
+            </div>
+          </div>
+
+          <div class="form-divider"></div>
+
+          <button type="submit" class="btn-solve">
+            Resolver con Transformada de Laplace →
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- ── Casos de prueba ── -->
+    <div style="margin-top:20px">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-header-icon indigo">⚡</div>
+          <span class="card-title">Casos de Prueba del PDF</span>
+        </div>
+        <div class="card-body">
+          <div class="examples-grid">
+            {% for ex in examples %}
+            <button type="button" class="btn-example"
+                    onclick="loadExample({{ ex.id }})">
+              <span class="example-num">{{ ex.id }}</span>
+              <div>
+                <div class="example-label">\({{ ex.label }}\)</div>
+                <div class="example-desc">{{ ex.desc }}</div>
+              </div>
+            </button>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Tarjeta de referencia teórica ── -->
+    <div style="margin-top:20px">
+      <div class="theory-aside">
+        <div class="theory-aside-title">
+          Tabla de Transformadas Clave
+          <span class="tip">
+            <span class="tip-icon">?</span>
+            <span class="tip-bubble">
+              Estas son las transformadas más usadas. El método de Laplace
+              funciona porque podemos obtener ℒ⁻¹ de Y(s) usando estas
+              tablas, sin necesidad de calcular integrales complicadas.
+            </span>
+          </span>
+        </div>
+        <div class="theory-formula">\(\mathcal{L}\{1\} = \dfrac{1}{s}\)</div>
+        <div class="theory-formula">\(\mathcal{L}\{e^{at}\} = \dfrac{1}{s-a}\)</div>
+        <div class="theory-formula">\(\mathcal{L}\{\sin(bt)\} = \dfrac{b}{s^2+b^2}\)</div>
+        <div class="theory-formula">\(\mathcal{L}\{\cos(bt)\} = \dfrac{s}{s^2+b^2}\)</div>
+        <div class="theory-formula">\(\mathcal{L}\{t^n\} = \dfrac{n!}{s^{n+1}}\)</div>
+        <div class="theory-note">
+          Propiedad de derivada: \(\mathcal{L}\{y'\} = sY(s) - y(0)\) &nbsp;|&nbsp;
+          \(\mathcal{L}\{y''\} = s^2Y(s) - sy(0) - y'(0)\)
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Columna derecha: Resultados ── -->
+  <div class="results-panel" id="results">
+
+    {% if error %}
+    <!-- ── Error ── -->
+    <div class="error-card">
+      <div class="error-title">⚠ Error al resolver</div>
+      <div class="error-body">{{ error }}</div>
+    </div>
+    {% endif %}
+
+    {% if result %}
+    <!-- ── Resumen de lo ingresado ── -->
+    <div class="eq-summary">
+      <div class="eq-summary-label">Ecuación ingresada</div>
+      <div class="eq-summary-math">\[ {{ result.equation_latex }} \]</div>
+      <div style="font-size:12px;color:var(--text-muted)">\( {{ result.ic_latex }} \)</div>
+    </div>
+
+    <!-- ── Solución final (destacada) ── -->
+    <div class="answer-card">
+      <div class="answer-header">
+        <span style="font-size:18px">✓</span>
+        <span class="answer-header-label">Solución Final</span>
+        <span class="tip">
+          <span class="tip-icon">?</span>
+          <span class="tip-bubble">
+            Esta es y(t) — la solución particular que satisface tanto la
+            EDO como las condiciones iniciales dadas. Es única gracias
+            al Teorema de Unicidad de Picard-Lindelöf.
+          </span>
+        </span>
+      </div>
+      <div class="answer-body">
+        <div class="answer-eq">\[ y(t) = {{ result.y_t_latex }} \]</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <span class="tag green">Solución Particular</span>
+          <span class="tag amber">Condiciones Iniciales Satisfechas</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Pasos de derivación ── -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-header-icon indigo">∫</div>
+        <span class="card-title">Derivación Paso a Paso</span>
+        <span class="tip">
+          <span class="tip-icon">?</span>
+          <span class="tip-bubble">
+            Cada paso muestra la transformación matemática aplicada.
+            Haz clic en cada paso para expandirlo y ver la teoría detrás.
+          </span>
+        </span>
+      </div>
+      <div class="card-body" style="display:flex;flex-direction:column;gap:8px;padding:14px 14px">
+        {% for step in result.steps %}
+        <div class="step-card">
+          <div class="step-header {% if forloop.first %}open{% endif %}"
+               onclick="toggleStep(this)">
+            <span class="step-num {{ step.color }}">{{ step.num }}</span>
+            <span class="step-title">{{ step.title }}</span>
+            <span class="step-chevron">▼</span>
+          </div>
+          <div class="step-body {% if forloop.first %}open{% endif %}">
+
+            {% if step.multiline %}
+              <div class="step-math multiline">
+                {% for line in step.multiline %}
+                <div>\( {{ line }} \)</div>
+                {% endfor %}
+              </div>
+            {% else %}
+              <div class="step-math">\[ {{ step.latex }} \]</div>
+            {% endif %}
+
+            {% if step.latex2 %}
+              <div class="step-math">\[ {{ step.latex2 }} \]</div>
+            {% endif %}
+
+            <div class="step-theory">{{ step.theory }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- ── Gráfica ── -->
+    {% if result.plot_b64 %}
+    <div class="plot-card">
+      <div class="plot-header">
+        <div class="card-header-icon" style="background:var(--amber-dim)">📈</div>
+        <span class="card-title">Gráfica de y(t)</span>
+        <span class="tip">
+          <span class="tip-icon">?</span>
+          <span class="tip-bubble">
+            La gráfica muestra el comportamiento de la solución en el tiempo.
+            El área sombreada ayuda a identificar si y(t) es positiva o negativa.
+            La línea horizontal en y=0 es el eje de referencia.
+          </span>
+        </span>
+      </div>
+      <div class="plot-body">
+        <img src="data:image/png;base64,{{ result.plot_b64 }}"
+             alt="Gráfica de la solución y(t)">
+      </div>
+      <div class="plot-caption">
+        Solución y(t) en el intervalo t ∈ [0, 10] — generada con matplotlib
+      </div>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <!-- ── Placeholder ── -->
+    <div class="card" style="height:100%">
+      <div class="placeholder">
+        <div class="placeholder-icon">ℒ</div>
+        <div class="placeholder-title">Listo para resolver</div>
+        <div class="placeholder-sub">
+          Configura la ecuación diferencial e ingresa las condiciones iniciales.
+          El solver mostrará cada paso de la derivación con explicación teórica.
+        </div>
+        <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+          <span class="tag amber">EDO → Álgebra</span>
+          <span class="tag indigo">Fracciones Parciales</span>
+          <span class="tag green">Solución y(t)</span>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+  </div><!-- /results-panel -->
+</div><!-- /main -->
+
+
+<!-- ═══════════════════════════════════════════════════════════════
+     JAVASCRIPT
+═══════════════════════════════════════════════════════════════ -->
+<script>
+// ── Datos de ejemplos (sincronizados con views.py) ──────────────────────────
+const EXAMPLES = {
+  1: { order:1, a2:'0', a1:'1', a0:'2', rhs_type:'zero',     rhs_param:'0', y0:'1', dy0:'0' },
+  2: { order:2, a2:'1', a1:'3', a0:'2', rhs_type:'zero',     rhs_param:'0', y0:'0', dy0:'1' },
+  3: { order:1, a2:'0', a1:'1', a0:'-1',rhs_type:'exp',      rhs_param:'1', y0:'1', dy0:'0' },
+  4: { order:2, a2:'1', a1:'0', a0:'1', rhs_type:'sin',      rhs_param:'1', y0:'0', dy0:'0' },
+};
+
+function loadExample(id) {
+  const e = EXAMPLES[id];
+  if (!e) return;
+  setOrder(e.order);
+  document.querySelector('[name=a2]').value = e.a2;
+  document.querySelector('[name=a1]').value = e.a1;
+  document.querySelector('[name=a0]').value = e.a0;
+  document.querySelector('[name=rhs_type]').value = e.rhs_type;
+  document.querySelector('[name=rhs_param]').value = e.rhs_param;
+  document.querySelector('[name=y0]').value = e.y0;
+  document.querySelector('[name=dy0]').value = e.dy0;
+  updateRhsParam();
+  // Auto-scroll al formulario
+  document.getElementById('solver-form').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function setOrder(order) {
+  document.getElementById('order-input').value = order;
+  const is2 = order === 2;
+
+  document.getElementById('a2-wrap').style.display   = is2 ? '' : 'none';
+  document.getElementById('dy0-wrap').style.display  = is2 ? '' : 'none';
+
+  // Actualizar tabs
+  const tabs = document.querySelectorAll('.order-tab');
+  tabs[0].classList.toggle('active', order === 2);
+  tabs[1].classList.toggle('active', order === 1);
+}
+
+function updateRhsParam() {
+  const type = document.getElementById('rhs-type').value;
+  const wrap = document.getElementById('rhs-param-wrap');
+  // Ocultar param si f(t)=0
+  wrap.style.display = type === 'zero' ? 'none' : '';
+}
+
+// ── Accordions de pasos ─────────────────────────────────────────────────────
+function toggleStep(header) {
+  const body = header.nextElementSibling;
+  const isOpen = header.classList.contains('open');
+  header.classList.toggle('open', !isOpen);
+  body.classList.toggle('open', !isOpen);
+}
+
+// ── Init ────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  // Inicializar estado del param de RHS
+  updateRhsParam();
+
+  // Si hay resultado, hacer scroll suave
+  const results = document.getElementById('results');
+  {% if result or error %}
+  setTimeout(() => {
+    results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 200);
+  {% endif %}
+});
+</script>
+
+</body>
+</html>
