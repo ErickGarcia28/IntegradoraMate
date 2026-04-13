@@ -131,9 +131,9 @@ Clic en **"Resolver con Transformada de Laplace →"**
 
 ---
 
-## Cargar casos de prueba del PDF
+## Cargar casos de prueba del 
 
-En la sección **"Casos de Prueba del PDF"** hay 4 botones que cargan automáticamente los datos:
+En la sección **"Casos de Prueba del "** hay 4 botones que cargan automáticamente los datos:
 
 | Botón | Ecuación |
 |-------|----------|
