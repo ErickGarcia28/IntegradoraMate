@@ -3,6 +3,7 @@ Motor matemático para resolución de EDOs con Transformada de Laplace.
 Usa sympy para cómputo simbólico paso a paso.
 """
 
+import re
 import sympy as sp
 import numpy as np
 import matplotlib
@@ -11,6 +12,22 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 from io import BytesIO
 import base64
+
+
+def latex_to_text(latex_str: str) -> str:
+    """Convierte LaTeX simple a texto legible para PDF."""
+    s = latex_str
+    s = re.sub(r'\\frac\{([^}]+)\}\{([^}]+)\}', r'(\1)/(\2)', s)
+    s = re.sub(r'\\mathcal\{[^}]+\}', 'L', s)
+    s = re.sub(r'\^\{([^}]+)\}', r'^(\1)', s)
+    s = re.sub(r'_\{([^}]+)\}', r'_\1', s)
+    s = re.sub(r'\\left[\(\[\{]|\\right[\)\]\}]', '', s)
+    s = re.sub(r'\\(quad|qquad)', '  ', s)
+    s = re.sub(r'\\cdot', '·', s)
+    s = re.sub(r'\\,', ' ', s)
+    s = re.sub(r'\\[a-zA-Z]+', '', s)
+    s = s.replace('{', '').replace('}', '')
+    return s.strip()
 
 
 # ── Símbolos globales ──────────────────────────────────────────────────────────
@@ -62,10 +79,14 @@ def clean_result(expr: sp.Expr) -> sp.Expr:
     return sp.simplify(expr)
 
 
-def generate_plot(y_expr: sp.Expr, t_max: float = 10.0) -> str:
+def generate_plot(y_expr: sp.Expr, t_max: float = 10.0,
+                  order: int = 1,
+                  a0=None, a1=None, a2=None,
+                  f_t: sp.Expr = None,
+                  y0: float = 0.0, dy0: float = 0.0) -> str:
     """
-    Genera la gráfica de y(t) y retorna como string base64.
-    Usa tema oscuro para coincidir con la UI.
+    Genera la gráfica de y(t) con solución exacta (Laplace) y comparación RK4.
+    Retorna como string base64. Usa tema oscuro para coincidir con la UI.
     """
     t_num = np.linspace(0, t_max, 600)
 
@@ -86,6 +107,52 @@ def generate_plot(y_expr: sp.Expr, t_max: float = 10.0) -> str:
     if not np.any(np.isfinite(y_num)):
         return ''
 
+    # ── Cálculo RK4 ──────────────────────────────────────────────────────────
+    CYAN = '#22d3ee'
+    rk4_y = None
+    if f_t is not None and a1 is not None and a0 is not None:
+        try:
+            f_num_rhs = sp.lambdify(t, f_t, modules=['numpy'])
+            a0f = float(a0)
+            a1f = float(a1)
+            h = t_num[1] - t_num[0]
+            if order == 1 and a1f != 0:
+                rk = np.zeros(len(t_num))
+                rk[0] = float(y0)
+
+                def ode1(ti, yi):
+                    return (float(f_num_rhs(ti)) - a0f * yi) / a1f
+
+                for i in range(len(t_num) - 1):
+                    k1 = ode1(t_num[i], rk[i])
+                    k2 = ode1(t_num[i] + h/2, rk[i] + h*k1/2)
+                    k3 = ode1(t_num[i] + h/2, rk[i] + h*k2/2)
+                    k4 = ode1(t_num[i] + h,   rk[i] + h*k3)
+                    rk[i+1] = rk[i] + h*(k1 + 2*k2 + 2*k3 + k4)/6
+                rk4_y = rk
+            elif order == 2 and a2 is not None:
+                a2f  = float(a2)
+                a1f2 = float(a1) if a1 is not None else 0.0
+                if a2f != 0:
+                    yrk  = np.zeros(len(t_num))
+                    dyrk = np.zeros(len(t_num))
+                    yrk[0]  = float(y0)
+                    dyrk[0] = float(dy0)
+
+                    def ode2(ti, yi, dyi):
+                        return (float(f_num_rhs(ti)) - a1f2*dyi - a0f*yi) / a2f
+
+                    for i in range(len(t_num) - 1):
+                        k1y = dyrk[i];              k1d = ode2(t_num[i], yrk[i], dyrk[i])
+                        k2y = dyrk[i]+h*k1d/2;     k2d = ode2(t_num[i]+h/2, yrk[i]+h*k1y/2, dyrk[i]+h*k1d/2)
+                        k3y = dyrk[i]+h*k2d/2;     k3d = ode2(t_num[i]+h/2, yrk[i]+h*k2y/2, dyrk[i]+h*k2d/2)
+                        k4y = dyrk[i]+h*k3d;        k4d = ode2(t_num[i]+h, yrk[i]+h*k3y, dyrk[i]+h*k3d)
+                        yrk[i+1]  = yrk[i]  + h*(k1y+2*k2y+2*k3y+k4y)/6
+                        dyrk[i+1] = dyrk[i] + h*(k1d+2*k2d+2*k3d+k4d)/6
+                    rk4_y = yrk
+        except Exception:
+            rk4_y = None
+
     # ── Estilo del gráfico ────────────────────────────────────────────────────
     BG_BASE   = '#0a0e17'
     BG_CARD   = '#111827'
@@ -99,15 +166,24 @@ def generate_plot(y_expr: sp.Expr, t_max: float = 10.0) -> str:
     fig.patch.set_facecolor(BG_BASE)
     ax.set_facecolor(BG_CARD)
 
-    # Línea principal
-    ax.plot(t_num, y_num, color=AMBER, linewidth=2.2, zorder=3)
+    # Línea RK4 (si existe), luego Laplace encima
+    if rk4_y is not None:
+        rk4_clipped = np.clip(rk4_y, -clip, clip)
+        ax.plot(t_num, rk4_clipped, color=CYAN, linewidth=1.8,
+                linestyle='--', alpha=0.80, zorder=4, label='RK4 numérico')
+        ax.plot(t_num, y_num, color=AMBER, linewidth=2.2, zorder=5, label='Laplace exacto')
+        legend = ax.legend(loc='upper right', fontsize=9,
+                           facecolor='#111827', edgecolor='#1e2d3d')
+        for text in legend.get_texts():
+            text.set_color(TEXT_MED)
+    else:
+        ax.plot(t_num, y_num, color=AMBER, linewidth=2.2, zorder=3)
 
     # Línea cero
     ax.axhline(y=0, color=GRID_LINE, linewidth=1.0, zorder=2)
     ax.axvline(x=0, color=GRID_LINE, linewidth=1.0, zorder=2)
 
     # Grid suave
-    ax.set_facecolor(BG_CARD)
     ax.grid(True, color=GRID_LINE, linewidth=0.6, linestyle='--', alpha=0.6, zorder=1)
 
     # Ejes y etiquetas
@@ -119,8 +195,7 @@ def generate_plot(y_expr: sp.Expr, t_max: float = 10.0) -> str:
         spine.set_edgecolor(GRID_LINE)
 
     # Área bajo la curva (sutil)
-    ax.fill_between(t_num, y_num, 0,
-                    alpha=0.08, color=GREEN, zorder=1)
+    ax.fill_between(t_num, y_num, 0, alpha=0.08, color=GREEN, zorder=1)
 
     fig.tight_layout(pad=1.5)
 
@@ -380,8 +455,12 @@ def solve_ode(order: int,
     # Generar pasos
     steps = build_step_strings(order, a2, a1, a0, y0, dy0, f_t, F_s, Y_s, Y_s_pf, y_t)
 
-    # Gráfica
-    plot_b64 = generate_plot(y_t)
+    # Gráfica con comparación RK4
+    plot_b64 = generate_plot(
+        y_t, t_max=10.0,
+        order=order, a0=a0, a1=a1, a2=a2,
+        f_t=f_t, y0=float(y0), dy0=float(dy0)
+    )
 
     # Ecuación legible del input para mostrar al usuario
     def coeff_str(c, var):
@@ -420,6 +499,16 @@ def solve_ode(order: int,
         'Y_s_latex': sp.latex(Y_s),
         'Y_s_pf_latex': sp.latex(Y_s_pf),
         'y_t_latex': sp.latex(y_t),
+        'y_t_pretty': str(y_t),
         'steps': steps,
+        'steps_text': [
+            {
+                'num':    step['num'],
+                'title':  step['title'],
+                'math':   latex_to_text(step.get('latex', '')),
+                'theory': step['theory'],
+            }
+            for step in steps
+        ],
         'plot_b64': plot_b64,
     }

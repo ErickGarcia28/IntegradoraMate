@@ -790,6 +790,51 @@
       margin-top: 4px;
     }
 
+    /* ── Botón PDF ── */
+    .btn-pdf {
+      width: 100%;
+      padding: 10px 16px;
+      background: transparent;
+      color: var(--green);
+      border: 1px solid rgba(16,185,129,0.4);
+      border-radius: var(--radius-md);
+      font-family: var(--font-head);
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn-pdf:hover {
+      background: rgba(16,185,129,0.08);
+      border-color: rgba(16,185,129,0.65);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       ANIMACIONES — Cascada de pasos al resolver
+    ═══════════════════════════════════════════════════════════════ */
+    @keyframes fadeInSlide {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .results-panel .eq-summary  { animation: fadeInSlide 0.35s ease both; animation-delay: 0.00s; }
+    .results-panel .answer-card { animation: fadeInSlide 0.38s ease both; animation-delay: 0.06s; }
+    .results-panel .pdf-export  { animation: fadeInSlide 0.38s ease both; animation-delay: 0.10s; }
+
+    .results-panel .step-card:nth-child(1) { animation: fadeInSlide 0.35s ease both; animation-delay: 0.13s; }
+    .results-panel .step-card:nth-child(2) { animation: fadeInSlide 0.35s ease both; animation-delay: 0.20s; }
+    .results-panel .step-card:nth-child(3) { animation: fadeInSlide 0.35s ease both; animation-delay: 0.27s; }
+    .results-panel .step-card:nth-child(4) { animation: fadeInSlide 0.35s ease both; animation-delay: 0.34s; }
+    .results-panel .step-card:nth-child(5) { animation: fadeInSlide 0.35s ease both; animation-delay: 0.41s; }
+    .results-panel .step-card:nth-child(6) { animation: fadeInSlide 0.35s ease both; animation-delay: 0.48s; }
+    .results-panel .step-card:nth-child(7) { animation: fadeInSlide 0.35s ease both; animation-delay: 0.55s; }
+
+    .results-panel .plot-card   { animation: fadeInSlide 0.40s ease both; animation-delay: 0.63s; }
+
     /* ── Tag ── */
     .tag {
       display: inline-flex;
@@ -897,6 +942,45 @@
         <form method="POST" id="solver-form">
           {% csrf_token %}
 
+          <!-- ── Parser de texto ── -->
+          <div style="margin-bottom:18px">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+              <label style="font-size:12px;font-weight:600;color:var(--text-secondary);
+                            text-transform:uppercase;letter-spacing:0.5px">
+                Escribir ecuación (texto)
+              </label>
+              <span class="tip">
+                <span class="tip-icon">?</span>
+                <span class="tip-bubble">
+                  Escribe la ecuación directo. Ejemplos:<br>
+                  y'' + 3y' + 2y = 0<br>
+                  y' - y = e^t<br>
+                  y'' + y = sin(t)
+                </span>
+              </span>
+            </div>
+            <div style="display:flex;gap:8px">
+              <input type="text" id="eq-text-input"
+                placeholder="ej: y'' + 3y' + 2y = sin(t)"
+                class="form-input"
+                style="flex:1;font-family:var(--font-mono);font-size:13px"
+                onkeydown="if(event.key==='Enter'){event.preventDefault();parseAndFill();}">
+              <button type="button" onclick="parseAndFill()"
+                style="padding:8px 14px;background:var(--indigo-dim);color:var(--indigo);
+                       border:1px solid rgba(129,140,248,0.3);border-radius:var(--radius-sm);
+                       font-family:var(--font-head);font-size:13px;font-weight:600;
+                       cursor:pointer;white-space:nowrap;transition:background 0.15s;"
+                onmouseover="this.style.background='rgba(129,140,248,0.2)'"
+                onmouseout="this.style.background='var(--indigo-dim)'">
+                Parsear →
+              </button>
+            </div>
+            <div id="parse-feedback"
+              style="font-size:11px;margin-top:5px;min-height:16px;
+                     font-family:var(--font-mono);color:var(--text-muted)">
+            </div>
+          </div>
+
           <!-- ── Orden ── -->
           <div class="order-tabs">
             <button type="button" class="order-tab {% if form.order != '1' %}active{% endif %}"
@@ -1003,7 +1087,7 @@
       <div class="card">
         <div class="card-header">
           <div class="card-header-icon indigo">⚡</div>
-          <span class="card-title">Casos de Prueba del PDF</span>
+          <span class="card-title">Casos de Prueba</span>
         </div>
         <div class="card-body">
           <div class="examples-grid">
@@ -1089,6 +1173,24 @@
           <span class="tag amber">Condiciones Iniciales Satisfechas</span>
         </div>
       </div>
+    </div>
+
+    <!-- ── Botón Exportar PDF ── -->
+    <div class="pdf-export">
+      <form method="POST" action="{% url 'export_pdf' %}" style="margin:0">
+        {% csrf_token %}
+        <input type="hidden" name="order"     value="{{ form.order|default:'2' }}">
+        <input type="hidden" name="a2"        value="{{ form.a2|default:'0' }}">
+        <input type="hidden" name="a1"        value="{{ form.a1|default:'1' }}">
+        <input type="hidden" name="a0"        value="{{ form.a0|default:'0' }}">
+        <input type="hidden" name="rhs_type"  value="{{ form.rhs_type|default:'zero' }}">
+        <input type="hidden" name="rhs_param" value="{{ form.rhs_param|default:'1' }}">
+        <input type="hidden" name="y0"        value="{{ form.y0|default:'0' }}">
+        <input type="hidden" name="dy0"       value="{{ form.dy0|default:'0' }}">
+        <button type="submit" class="btn-pdf">
+          ↓ Exportar Reporte PDF
+        </button>
+      </form>
     </div>
 
     <!-- ── Pasos de derivación ── -->
@@ -1238,6 +1340,114 @@ function toggleStep(header) {
   const isOpen = header.classList.contains('open');
   header.classList.toggle('open', !isOpen);
   body.classList.toggle('open', !isOpen);
+}
+
+// ── Parser de ecuaciones desde texto ───────────────────────────────────────
+function parseEquation(raw) {
+  const s = raw.trim()
+               .replace(/\s+/g, '')
+               .replace(/\u2212/g, '-')   // guión largo → -
+               .replace(/\*/g, '');
+
+  const parts = s.split('=');
+  if (parts.length < 2) return null;
+  const lhs = parts[0];
+  const rhs = parts.slice(1).join('=');
+
+  function extractCoeff(str, pattern) {
+    const m = str.match(pattern);
+    if (!m) return null;
+    const c = m[1];
+    if (c === '' || c === '+') return 1;
+    if (c === '-') return -1;
+    const v = parseFloat(c);
+    return isNaN(v) ? null : v;
+  }
+
+  // Coeficiente de y''
+  const a2 = extractCoeff(lhs, /([+\-]?\d*\.?\d*)y''/);
+
+  // Eliminar y'' del LHS para extraer y'
+  const lhsNo2 = lhs.replace(/[+\-]?\d*\.?\d*y''/, '');
+  const a1 = extractCoeff(lhsNo2, /([+\-]?\d*\.?\d*)y'/);
+
+  // Eliminar y' para extraer y
+  const lhsNo21 = lhsNo2.replace(/[+\-]?\d*\.?\d*y'/, '');
+  const a0 = extractCoeff(lhsNo21, /([+\-]?\d*\.?\d*)y/);
+
+  if (a1 === null && a2 === null) return null;
+
+  // ── Parsear RHS ──────────────────────────────────────────────────────────
+  let rhs_type = 'zero', rhs_param = '1';
+  const rhsClean = rhs.toLowerCase();
+
+  if (rhsClean === '0' || rhsClean === '') {
+    rhs_type = 'zero';
+  } else if (/^[+\-]?\d+\.?\d*$/.test(rhsClean)) {
+    rhs_type = 'constant';
+    rhs_param = rhsClean;
+  } else if (/t[+\-]?\d*\.?\d*sin\(|tsin/.test(rhsClean) || /t\s*sin\(/.test(rhsClean)) {
+    rhs_type = 'tsin';
+    const m = rhsClean.match(/sin\(([^)]*?)t\)/);
+    rhs_param = (m && m[1] && m[1] !== '' && m[1] !== '+') ? m[1] : '1';
+  } else if (/te\^|t[+\-]?\d*\.?\d*e\^/.test(rhsClean)) {
+    rhs_type = 'texp';
+    const m = rhsClean.match(/e\^[\(]?([^\)t\*,\s^]+)/);
+    rhs_param = m ? m[1] : '1';
+  } else if (/sin\(/.test(rhsClean)) {
+    rhs_type = 'sin';
+    const m = rhsClean.match(/sin\(([^)]*?)t\)/);
+    const coeff = m ? m[1] : '';
+    rhs_param = (coeff && coeff !== '' && coeff !== '+') ? coeff : '1';
+  } else if (/cos\(/.test(rhsClean)) {
+    rhs_type = 'cos';
+    const m = rhsClean.match(/cos\(([^)]*?)t\)/);
+    const coeff = m ? m[1] : '';
+    rhs_param = (coeff && coeff !== '' && coeff !== '+') ? coeff : '1';
+  } else if (/e\^/.test(rhsClean)) {
+    rhs_type = 'exp';
+    const m = rhsClean.match(/e\^[\(]?([^\)t\*,\s^]+)/);
+    rhs_param = m ? m[1] : '1';
+  }
+
+  const order = (a2 !== null && a2 !== 0) ? 2 : 1;
+  return {
+    order,
+    a2: (a2 ?? 0).toString(),
+    a1: (a1 ?? (order === 1 ? 1 : 0)).toString(),
+    a0: (a0 ?? 0).toString(),
+    rhs_type,
+    rhs_param
+  };
+}
+
+function parseAndFill() {
+  const raw = document.getElementById('eq-text-input').value;
+  const fb  = document.getElementById('parse-feedback');
+  if (!raw.trim()) {
+    fb.style.color = 'var(--text-muted)';
+    fb.textContent = '';
+    return;
+  }
+  const parsed = parseEquation(raw);
+  if (!parsed) {
+    fb.style.color = 'var(--red)';
+    fb.textContent = "✗ No se pudo parsear. Formato: y'' + 3y' + 2y = sin(t)";
+    return;
+  }
+  setOrder(parsed.order);
+  document.querySelector('[name=a2]').value        = parsed.a2;
+  document.querySelector('[name=a1]').value        = parsed.a1;
+  document.querySelector('[name=a0]').value        = parsed.a0;
+  document.querySelector('[name=rhs_type]').value  = parsed.rhs_type;
+  document.querySelector('[name=rhs_param]').value = parsed.rhs_param;
+  updateRhsParam();
+  const rhsLabel = {
+    zero:'0 (homogénea)', constant:'constante', exp:'eᵃᵗ',
+    sin:'sin(bt)', cos:'cos(bt)', texp:'t·eᵃᵗ', tsin:'t·sin(bt)'
+  }[parsed.rhs_type] || parsed.rhs_type;
+  fb.style.color = 'var(--green)';
+  fb.textContent = `✓ Orden ${parsed.order} · f(t) = ${rhsLabel} · parámetro = ${parsed.rhs_param}`;
 }
 
 // ── Init ────────────────────────────────────────────────────────────────────
